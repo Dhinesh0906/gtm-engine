@@ -2,7 +2,7 @@
 
 Raliess is a self-hosted outbound sales system built in Python. It takes a product brief, finds businesses that may be a fit, identifies contact points, researches each company, drafts outreach, sends email, processes replies, and shows the whole funnel in a local dashboard.
 
-> **Portfolio edition:** This README describes the full project, including private AI and email workflows. The repository contains 35 of the application's 58 Python source files, selected tests, dashboard templates, the schema, and dependencies for code review. It excludes production prompts, campaign orchestration, sending and reply implementations, credentials, customer records, messages, and deployment configuration. This snapshot cannot run a campaign by itself.
+> **Portfolio edition:** This README describes the full project, including private AI and email workflows. The repository contains 35 of the application's 58 Python source files, selected tests, dashboard templates, the schema, and dependency metadata for code review. It excludes production prompts, campaign orchestration, sending and reply implementations, credentials, customer records, messages, and live deployment configuration. This snapshot cannot run a campaign by itself.
 
 ## The problem it solves
 
@@ -158,7 +158,19 @@ These are stored-record and activity counts from the local working database. The
 
 ## What is public in this repository
 
-The repository is laid out like the application: [`app/`](app/) contains 35 of 58 Python modules, including collectors, resolution, enrichment, contact discovery, search, database models, product-brief handling, and read-only UI code. [`tests/`](tests/) contains selected offline tests. The root includes [`schema.sql`](schema.sql) and [`requirements.txt`](requirements.txt), while [`docs/CODE_MAP.md`](docs/CODE_MAP.md) identifies what each public module demonstrates. The remaining private modules include the campaign writer and prompt bodies, provider configuration, batch/sender internals, reply automation, production UI actions, and operational scripts. No credentials, local databases, customer records, or email content are published.
+The repository uses a project-style layout:
+
+```text
+src/app/       selected application modules and UI templates
+tests/         representative offline tests
+docs/          architecture, AI workflow, and public code map
+examples/      fictional product brief and placeholder configuration
+deploy/        deployment topology, without live scripts or credentials
+schema.sql     data-model reference
+requirements.txt and pyproject.toml  dependency and tooling metadata
+```
+
+[`src/app/`](src/app/) contains 35 of 58 application Python modules, including collectors, resolution, enrichment, contact discovery, search, database models, product-brief handling, and read-only UI code. [`docs/CODE_MAP.md`](docs/CODE_MAP.md) identifies what each public module demonstrates. The remaining private modules include the campaign writer and prompt bodies, provider configuration, batch/sender internals, reply automation, production UI actions, and operational scripts. No credentials, local databases, customer records, or email content are published.
 
 ## Author
 

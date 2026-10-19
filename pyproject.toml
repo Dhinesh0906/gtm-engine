@@ -1,0 +1,11 @@
+# Tooling metadata for the public portfolio snapshot.
+# This repository intentionally omits modules needed to run the full app.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--import-mode=importlib"
+markers = ["slow: longer scale checks from the private project"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100

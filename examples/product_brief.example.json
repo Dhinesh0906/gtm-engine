@@ -1,0 +1,16 @@
+{
+  "name": "Sample Scheduling Tool",
+  "summary": "A fictional scheduling tool for appointment-based teams.",
+  "value_props": "Reduce manual booking work\nKeep schedules in one place",
+  "proof_points": "",
+  "icp": "Small appointment-based businesses",
+  "tone": "Direct and helpful",
+  "cta": "Ask whether a short walkthrough would help",
+  "locked_facts": [
+    "This is a fictional example for documentation."
+  ],
+  "must_not_claim": [
+    "Do not claim integrations, results, or pricing that are not supplied."
+  ],
+  "auto_reply": "off"
+}
