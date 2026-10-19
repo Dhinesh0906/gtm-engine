@@ -1,71 +1,137 @@
 # Raliess — AI Go-to-Market Engine
 
-Raliess is a self-hosted outbound sales system built in Python. It turns a product brief into a targeted campaign: collect company records, resolve duplicates, identify prospects, research their businesses, draft relevant outreach, send through an email provider, and process replies. A local dashboard gives the operator control over leads, campaigns, drafts, sending, and the inbox.
+Raliess is a self-hosted outbound sales system built in Python. It takes a product brief, finds businesses that may be a fit, identifies contact points, researches each company, drafts outreach, sends email, processes replies, and shows the whole funnel in a local dashboard.
 
-> **Portfolio edition:** This repository documents the complete system and shares 29 of its 58 application Python files as a screened source sample. The remaining application code, production data, credentials, prompts, deployment configuration, and operational integrations are private. This snapshot is not a runnable email platform.
+> **Portfolio edition:** This README describes the full project, including private AI and email workflows. The repository contains 29 of the application's 58 Python source files for code review. It excludes production prompts, campaign orchestration, sending and reply implementations, credentials, customer records, messages, and deployment configuration. This snapshot cannot run a campaign by itself.
 
-## What I built
+## The problem it solves
 
-| Area | What the full system does |
-| --- | --- |
-| Data collection | Imports company records from public registries, open geographic datasets, and web indexes into resumable staging files. |
-| Entity resolution | Normalizes names and domains, applies source provenance and trust rules, and uses DuckDB for disk-backed deduplication before updating SQLite. |
-| Enrichment and search | Fetches useful website text, classifies companies, and maintains text and vector search paths for candidate discovery. |
-| Campaign planning | Stores product briefs, generates customer segments, filters target companies, and assigns reachable contacts to campaigns. |
-| AI-assisted writing | Uses company research and product facts to draft emails, checks output constraints, and retains drafts for review. |
-| Delivery controls | Sends through Amazon SES with suppression, contact history, per-domain limits, verification, and send logging. |
-| Reply handling | Imports inbound mail, links it to conversations, classifies intent, drafts replies, and routes sensitive cases for operator review. |
-| Analytics and UI | Shows lead pools, campaign funnels, drafts, inbox threads, segment performance, and batch progress in a local FastAPI dashboard. |
+A small team promoting a product needs three things that are usually split across tools: a searchable company database, a way to decide which companies to contact, and a reliable workflow for personalized outreach and replies. Raliess connects those steps in one local system. The global company pool is built once and reused by multiple product campaigns; campaign work only enriches and promotes the records it actually needs.
 
-## End-to-end flow
+## End-to-end architecture
 
 ```mermaid
 flowchart LR
-  A[Public company sources] --> B[Normalize and stage]
-  B --> C[Resolve identities]
-  C --> D[(Shared company database)]
-  D --> E[Website text and enrichment]
-  E --> F[Search and target selection]
-  P[Product brief] --> G[Campaign and segments]
-  G --> F
-  F --> H[Contact discovery and validation]
-  H --> I[Research and draft]
-  I --> J[Review and delivery gates]
-  J --> K[SES email delivery]
-  K --> L[Inbound replies and events]
-  L --> M[Inbox and campaign analytics]
+  subgraph A[Shared data pipeline]
+    S[Public data sources] --> ST[Normalize and stage]
+    ST --> ER[Entity resolution]
+    ER --> DB[(SQLite company pool)]
+    DB --> WT[Website text and enrichment]
+    WT --> IDX[Text and vector indexes]
+  end
+  subgraph B[Per-product campaign]
+    PB[Website or product brief] --> PROF[Product profile]
+    PROF --> ICP[Customer segments]
+    ICP --> FIND[Candidate search]
+    IDX --> FIND
+    FIND --> CONTACT[Contact discovery and validation]
+    CONTACT --> RES[Company research]
+    RES --> DRAFT[AI draft and validation]
+    DRAFT --> GATE[Delivery checks]
+    GATE --> SES[Amazon SES]
+    SES --> IN[Inbound email and events]
+    IN --> REP[Classification and reply draft]
+    REP --> UI[Dashboard and analytics]
+  end
 ```
 
-The data pipeline is shared across products. Campaigns read from that pool, so a new product does not require rebuilding the company database. Records and jobs are designed to be resumable and idempotent: repeated imports update known entities instead of creating another copy.
+The two pipelines are independent. Harvesting can continue without a campaign, and campaigns query the shared pool instead of re-importing the world. SQLite is the transactional store of record; DuckDB handles disk-backed bulk resolution.
 
-## Architecture and technical choices
+## 1. Building the company and contact database
 
-- **Python 3.12, SQLModel, and SQLite:** transactional records for companies, people, contact points, campaigns, assignments, messages, suppressions, and send history. WAL mode supports concurrent readers while collectors and workers write.
-- **DuckDB:** disk-backed passes for high-volume entity resolution and bulk data work. It avoids loading the entire company pool into Python memory.
-- **HTTPX, Beautiful Soup, DNS tooling, and source-specific parsers:** website extraction, source ingestion, and address validation.
-- **FastEmbed and USearch:** local embeddings and vector similarity for company discovery alongside indexed text search.
-- **OpenAI-compatible model interface:** interchangeable local or hosted models for enrichment, segmentation, research, and writing. The active installation uses a local model with cloud access disabled.
-- **FastAPI and Jinja2:** operator dashboard and a separate read-only data viewer.
-- **Amazon SES, S3, and SQS:** outbound SMTP delivery, inbound email storage, and delivery-event processing in the full deployment.
-- **Pytest:** offline checks for collectors, resolution, agents, sending, replies, optimization, and dashboard behavior.
+### Source collection
 
-## Engineering details
+Source adapters read public company and place data from Overture Maps, OpenStreetMap, Common Crawl, GLEIF, SEC EDGAR, and business registries in the UK, Norway, Singapore, India, Belgium, and Canada. Adapters convert different upstream formats to one staging record. Each source has its own checkpoint and outcome status, so a missing key or unavailable endpoint does not silently look like a successful import. Staging is resumable and avoids rewriting unchanged records.
 
-### One shared lead pool, multiple products
+The system records source provenance alongside the resolved company. That matters later: a contact address found on a company's own website has different evidence from an old directory listing.
 
-Companies and people are stored globally. A campaign links a product and its customer segments to selected contacts. A polymorphic `contact_points` model records reachability without tying the entire schema to email. Provenance is retained so the system can distinguish a verified site address from a weaker listing-derived address.
+### Entity resolution and storage
 
-### Data quality before scale
+The resolver normalizes domains and names, rejects junk or placeholder domains, uses source trust rules, and deduplicates records before upserting them into the global company table. DuckDB performs the bulk passes on disk. SQLite stores companies, source provenance, people, contact points, campaigns, segments, assignments, messages, suppressions, send logs, and contact history. WAL mode and targeted indexes support dashboard reads while workers write.
 
-Collection stages source records first, records per-source outcomes, and treats missing credentials or unavailable endpoints differently from malformed data. Resolution normalizes domains and names, rejects placeholder domains, and uses deterministic keys with source trust rules. Downstream selection can favor stronger contact evidence and suppress invalid or opted-out addresses.
+The contact model is channel-aware: a person can have an email address, phone number, or other contact point without adding a dedicated column for each channel. Campaign assignments connect a person and a chosen contact point to one product and segment.
 
-### Controlled outreach
+### Website text, enrichment, and search
 
-The production sender checks sendability and suppression before delivery, records contact history to avoid repeated outreach, and tracks per-domain and daily usage. Cold sends can be started as a bounded batch from the dashboard. Incoming replies are attached to the original conversation; reply automation defaults to drafting for operator review.
+The web-text worker fetches company pages, strips page boilerplate, caches outcomes, and retries failures according to status. Enrichment uses available page text or source metadata to produce company descriptions, industry labels, and fit-oriented scores. Search combines indexed text queries with local embeddings through FastEmbed and USearch; candidate selection can also apply country, vertical, and segment filters.
 
-### Operations and visibility
+Contact discovery mines published addresses, checks company sites, and can derive candidate patterns. Validation separates syntax, domain/MX checks, source confidence, and SMTP or external-verifier outcomes. The system ranks a verified or published address above an unverified guess, and unsupported guesses can be held from sending.
 
-The dashboard exposes campaigns, lead filters, drafted messages, conversation threads, inbox, escalations, batch status, and funnel metrics. The system also includes CLI reports and diagnostics for collection, resolution, deliverability, and data quality. Long-running jobs use checkpoints or persisted state so interrupted work can resume.
+## 2. Turning a product into a campaign
+
+A campaign can start from a product website or a written brief. The brief stores the product name, summary, value propositions, proof points, target customers, differentiation, tone, call to action, approved facts, and claims the writer must avoid. If a website cannot be read and no description is supplied, profiling reports an error instead of pretending to know the product.
+
+A model proposes ideal-customer-profile segments with a fit score, buyer titles, pain-point angle, and search queries. Segment records are persisted, then matched against the company pool. Lead sourcing is scoped to the campaign: the system does not enrich every company in the global database just to prepare one outbound batch.
+
+## 3. How the AI writing system works
+
+The runtime model interface exposes lighter and stronger model roles through an OpenAI-compatible API. The lighter role handles high-volume extraction or research; the stronger role handles segmentation and message writing. Providers can be configured as local or hosted, with retry and fallback behavior. The current installation serves a quantized Gemma 4 31B model through `llama-server` with Metal acceleration and cloud model access disabled.
+
+The production prompt text is private, but the **prompt workflow** is:
+
+| Stage | Inputs | Expected output and check |
+| --- | --- | --- |
+| Product profile | Website text or operator description | Structured name, summary, value propositions, and proof points. Proof points must come from supplied material. |
+| ICP design | Product profile and proof points | Structured segments, buyer roles, fit scores, angles, and search queries. |
+| Lead research | Company description, website text, campaign brief | One specific observation supported by that company's evidence, or an empty result when no useful fact exists. |
+| Cold-email draft | Product brief, allowed claims, recipient context, research observation, sender voice, and recent messages | Structured subject and body, followed by deterministic checks and revision attempts. |
+| Reply draft | Latest inbound message, intent, product facts, sender identity, and the full conversation | A short contextual answer that does not repeat or contradict earlier replies. |
+
+The writer's context has this shape; the values below are field names, not a production prompt or real prospect data:
+
+```text
+Product: summary, value propositions, approved proof, CTA, tone
+Prospect: company, role, website evidence, one research observation
+Boundaries: approved facts, forbidden claims, length and style rules
+Variety: recent subjects and openings to avoid repeating
+Return: structured subject and body for validation
+```
+
+### Personalization and grounding
+
+The research stage asks for a detail a generic email to the entire trade could not have known. It can return nothing; an empty observation is preferable to a guessed one. The email writer gets the product's approved facts and restrictions, the recipient's company and role, and the research observation when available. It also sees recently used subjects and openings so it can vary the message rather than reproduce the same template.
+
+### Draft validation and retries
+
+The draft generator expects structured JSON, normalizes cosmetic issues, and checks constraints such as length, banned phrases, sign-offs, repeated subjects, similar openings, and product-brief guardrails. A rejected draft can be regenerated with its specific failures as feedback. If no fully clean version appears, a guardrail-clean candidate with minor style faults may be retained for review; a guardrail violation is not accepted as the fallback. Draft creation does not itself send email.
+
+This is an engineering control, not a guarantee of factual accuracy. An internal evaluation found unsupported claims and repetitive wording when a targeted business had little usable website text. Human review remains important.
+
+## 4. Delivery and reply workflow
+
+### Cold outreach
+
+The sender composes a message under a configured sender persona and uses Amazon SES SMTP for delivery. Before a cold send, it checks contact quality, suppressions, duplicate-address and contact-history rules, persona availability, enabled sending domain, and applicable limits. It stores the delivered body, provider ID, sender identity, and threading metadata so the inbox reflects what actually went out.
+
+The dashboard provides an operator-started batch with a bounded target and pacing between sends. The separate background worker can refill drafts and poll replies. Automatic cold sourcing and sending are disabled in the current installation, so an operator starts cold batches deliberately. A batch has different scheduling behavior from the normal sender, but still checks suppression and address deduplication.
+
+### Inbound mail and events
+
+Inbound email is stored in S3, imported, parsed, and matched to a conversation using message headers and address history. SES events arrive through SQS and feed delivery and bounce tracking. The reply handler classifies intent, records unsubscribes and bounces, ignores ordinary out-of-office replies, and surfaces cases that need a person. A reply draft uses the entire thread and stays attached to the original sender persona.
+
+The default reply behavior is draft-for-review. Optional automatic sending is restricted by global and per-campaign settings, allowed intent, and confidence; high-priority or uncertain cases are escalated instead. Reply sends are recorded separately from new cold outreach.
+
+### Follow-ups and optimization
+
+The optimization layer calculates sent, delivered, opened, clicked, replied, positive-reply, bounce, complaint, and suppression measures. It compares segments after a minimum sample and can mark them testing, working, scaling, or paused. It does not undo an operator's pause. Follow-up scheduling checks timing, reply state, suppression, and existing steps before creating another **draft**. Subject lines can be ranked by observed reply rate once they have enough sends.
+
+## 5. Operator dashboard and tools
+
+The FastAPI/Jinja dashboard has views for products, target segments, lead filters, draft review, inbox threads, escalations, batch progress, and campaign metrics. Actions include editing or discarding drafts, starting or stopping a batch, checking inbound mail, pausing a campaign, and changing model mode. A separate read-only viewer supports inspecting the company database. CLI commands and diagnostic scripts cover harvesting, resolving, lead quality, sending state, bounces, and data freshness.
+
+## Technology stack
+
+| Layer | Technologies |
+| --- | --- |
+| Runtime | Python 3.12 |
+| Transactional data | SQLite, SQLModel, SQLAlchemy, WAL |
+| Bulk resolution | DuckDB |
+| Ingestion and extraction | HTTPX, Beautiful Soup, PyOsmium, DNS tooling |
+| Search | SQLite FTS, FastEmbed, USearch |
+| AI | OpenAI-compatible model interface; quantized Gemma 4 31B via `llama-server` and Metal in the current deployment; configurable hosted providers |
+| Web UI | FastAPI, Jinja2, Uvicorn |
+| Email and events | Amazon SES SMTP, S3, SQS, MIME and message threading |
+| Verification and tests | Pytest, source reports, CLI diagnostics |
 
 ## Scale observed in the local deployment
 
@@ -80,18 +146,19 @@ Read-only database counts taken in October 2026:
 | Sent messages | 722 |
 | Received messages | 23 |
 
-These figures describe the local working database, not data included in this public repository. They show stored records and activity, not guaranteed contact accuracy or campaign effectiveness.
+These are stored-record and activity counts from the local working database. The data and message contents are not included here. The counts do not imply that every contact is current or that every campaign performed well.
 
-## What this repository includes
+## Reliability and current limitations
 
-The `samples/` directory contains roughly half of the application Python files. It covers data collection and staging, entity resolution, website text, enrichment, contact discovery, search, and read-only dashboard queries. The samples are meant for code review. Internal campaign orchestration, full AI prompts, sending and reply workflows, credentials, lead records, message content, and production configuration are withheld.
+- Collectors and resolution stages are designed for resumable, idempotent work; large data passes run on disk rather than requiring the full pool in memory.
+- Website research is the main quality bottleneck. In one internal 20-lead evaluation, almost all sampled targets lacked useful website text, and the generated outreach often had no concrete observation to use.
+- The same evaluation found repetitive phrasing and unsupported integration claims in some drafts. Those findings are documented here as active quality limits, not presented as solved by the prompt checks.
+- The private project has offline tests for its major phases. This public subset is intentionally not runnable because production modules and configuration are omitted.
+- Older internal planning documents describe some later features as pending; this README follows the current implementation rather than those earlier plans.
 
-## Current limitations
+## What is public in this repository
 
-- The largest practical quality challenge is obtaining useful, current website text for each targeted business. A project audit found that many sampled targets lacked enough research material for genuinely specific messages.
-- AI-written outreach still needs review. Internal evaluations found repetitive phrasing and occasional claims that were not supported by the available company evidence.
-- This public snapshot is intentionally incomplete, so it cannot be used to reproduce production results or run a campaign.
-- Some older internal planning documents predate implemented features. This README reflects the code and local data reviewed for this portfolio edition.
+[`samples/`](samples/) contains 29 of 58 application Python files: source adapters, staging, resolution, enrichment, contact discovery, search, database models, and read-only UI code. The [sample inventory](samples/README.md) explains each group. The private half contains the campaign writer and prompt bodies, provider configuration, batch/sender internals, reply automation, production UI actions, and operational scripts. No credentials, local databases, customer records, or email content are published.
 
 ## Author
 
