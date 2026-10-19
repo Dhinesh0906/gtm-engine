@@ -946,7 +946,7 @@ def _print_report(report_data: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 4 AI enrichment")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 4 AI enrichment")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Enrich companies from web_text")

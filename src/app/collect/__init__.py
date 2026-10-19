@@ -170,7 +170,7 @@ def report() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 1 data collection")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 1 data collection")
     parser.add_argument("source", nargs="?", help="Source to run or 'all'")
     parser.add_argument("--sample", action="store_true", help="Limit each source to 50 rows")
     parser.add_argument("--report", action="store_true", help="Print staging report")

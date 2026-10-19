@@ -674,7 +674,7 @@ def _print_report(report_data: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 3b free domain discovery")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 3b free domain discovery")
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("mine", help="Mine domains from existing raw_json")

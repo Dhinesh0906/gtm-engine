@@ -1,6 +1,6 @@
 # AI workflow
 
-The full Raliess application uses an OpenAI-compatible model interface with lighter and stronger roles. A local model or configured hosted provider can fill those roles. The current installation uses a local quantized Gemma 4 model with cloud access disabled.
+The full GTM Engine application uses an OpenAI-compatible model interface with lighter and stronger roles. A local model or configured hosted provider can fill those roles. The current installation uses a local quantized Gemma 4 model with cloud access disabled.
 
 ## Stages
 

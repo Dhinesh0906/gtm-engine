@@ -377,7 +377,7 @@ def backfill_industry(limit: int | None = None, batch: int = 5000) -> dict[str, 
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess listing-to-contact promotion")
+    parser = argparse.ArgumentParser(description="GTM Engine listing-to-contact promotion")
     subparsers = parser.add_subparsers(dest="command")
 
     p = subparsers.add_parser("promote", help="Promote listing contacts")

@@ -1,12 +1,12 @@
-# Raliess — AI Go-to-Market Engine
+# GTM Engine — AI Go-to-Market Engine
 
-Raliess is a self-hosted outbound sales system built in Python. It takes a product brief, finds businesses that may be a fit, identifies contact points, researches each company, drafts outreach, sends email, processes replies, and shows the whole funnel in a local dashboard.
+GTM Engine is a self-hosted outbound sales system built in Python. It takes a product brief, finds businesses that may be a fit, identifies contact points, researches each company, drafts outreach, sends email, processes replies, and shows the whole funnel in a local dashboard.
 
 > **Portfolio edition:** This README describes the full project, including private AI and email workflows. The repository contains 35 of the application's 58 Python source files, selected tests, dashboard templates, the schema, and dependency metadata for code review. It excludes production prompts, campaign orchestration, sending and reply implementations, credentials, customer records, messages, and live deployment configuration. This snapshot cannot run a campaign by itself.
 
 ## The problem it solves
 
-A small team promoting a product needs three things that are usually split across tools: a searchable company database, a way to decide which companies to contact, and a reliable workflow for personalized outreach and replies. Raliess connects those steps in one local system. The global company pool is built once and reused by multiple product campaigns; campaign work only enriches and promotes the records it actually needs.
+A small team promoting a product needs three things that are usually split across tools: a searchable company database, a way to decide which companies to contact, and a reliable workflow for personalized outreach and replies. GTM Engine connects those steps in one local system. The global company pool is built once and reused by multiple product campaigns; campaign work only enriches and promotes the records it actually needs.
 
 ## End-to-end architecture
 

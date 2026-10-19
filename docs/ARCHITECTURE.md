@@ -1,6 +1,6 @@
 # Architecture
 
-Raliess has two work loops sharing one transactional database.
+GTM Engine has two work loops sharing one transactional database.
 
 ## Shared data loop
 

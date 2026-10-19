@@ -890,7 +890,7 @@ def print_report(report: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 2 entity resolution")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 2 entity resolution")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Resolve staging records into companies")

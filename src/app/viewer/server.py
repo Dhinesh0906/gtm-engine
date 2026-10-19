@@ -19,7 +19,7 @@ from app.viewer import queries as q
 
 import os as _os
 
-app = FastAPI(title="Raliess Data Viewer")
+app = FastAPI(title="GTM Engine Data Viewer")
 
 _tpl_dir = _os.path.join(_os.path.dirname(__file__), "templates")
 _static_dir = _os.path.join(_os.path.dirname(__file__), "static")
@@ -71,7 +71,7 @@ def export_csv(request: Request, db: Session = Depends(get_db),
                          row["description"], row["address"], row["industry"], row["country"]])
     output.seek(0)
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=raliess_export.csv"})
+                             headers={"Content-Disposition": "attachment; filename=gtm_engine_export.csv"})
 
 
 # -------------------------------------------------------------------

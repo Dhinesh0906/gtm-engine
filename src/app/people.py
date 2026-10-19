@@ -951,7 +951,7 @@ def _print_report(report_data: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 6 people + email discovery")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 6 people + email discovery")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Find people and emails for companies")

@@ -86,7 +86,7 @@ def _accept_license(client: httpx.Client) -> None:
             "productId": "1",
             "username": settings.kbo_username,
             "licenseAccepted": "true",
-            "purpose": "Raliess Phase 1 open data collection",
+            "purpose": "GTM Engine Phase 1 open data collection",
         },
     )
     r.raise_for_status()

@@ -498,7 +498,7 @@ def _print_report(report_data: dict[str, Any]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    parser = argparse.ArgumentParser(description="Raliess Phase 3 web-text fetcher")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 3 web-text fetcher")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Fetch homepage text for eligible companies")

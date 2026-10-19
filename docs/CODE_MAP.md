@@ -13,4 +13,4 @@ This portfolio snapshot contains 35 of the private application's 58 Python modul
 | Data viewer | `src/app/viewer/` | Read-only browser for the shared company pool |
 | Tests | `tests/` | Selected offline checks for resolution, website text, enrichment, and search |
 
-The retained files still reference omitted private modules. They are shared for code review and are not a standalone, runnable version of Raliess. The full system and its test suite remain private.
+The retained files still reference omitted private modules. They are shared for code review and are not a standalone, runnable version of GTM Engine. The full system and its test suite remain private.

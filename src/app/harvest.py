@@ -271,7 +271,7 @@ def loop(rest_hours: int | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess harvest orchestrator")
+    parser = argparse.ArgumentParser(description="GTM Engine harvest orchestrator")
     subparsers = parser.add_subparsers(dest="command")
 
     run_parser = subparsers.add_parser("run", help="Run one harvest round")

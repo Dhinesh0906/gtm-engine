@@ -1,4 +1,4 @@
-"""SQLModel models, engine, and session helpers for the frozen Raliess schema."""
+"""SQLModel models, engine, and session helpers for the frozen GTM Engine schema."""
 
 from datetime import datetime, timezone
 from weakref import WeakSet

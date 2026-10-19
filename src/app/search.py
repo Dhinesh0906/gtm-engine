@@ -365,7 +365,7 @@ def _print_report(report_data: dict[str, int]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Raliess Phase 5 semantic search")
+    parser = argparse.ArgumentParser(description="GTM Engine Phase 5 semantic search")
     subparsers = parser.add_subparsers(dest="command")
 
     build_parser = subparsers.add_parser("build", help="Build/update the vector index")

@@ -1,4 +1,4 @@
-"""Raliess application package."""
+"""GTM Engine application package."""
 
 from sqlmodel import select
 
