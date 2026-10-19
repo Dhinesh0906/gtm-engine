@@ -2,7 +2,7 @@
 
 Raliess is a self-hosted outbound sales system built in Python. It turns a product brief into a targeted campaign: collect company records, resolve duplicates, identify prospects, research their businesses, draft relevant outreach, send through an email provider, and process replies. A local dashboard gives the operator control over leads, campaigns, drafts, sending, and the inbox.
 
-> **Portfolio edition:** This repository documents the complete system and shares a small, curated set of code samples. The production application, data, credentials, prompts, deployment configuration, and operational integrations are intentionally private. This snapshot is not a runnable email platform.
+> **Portfolio edition:** This repository documents the complete system and shares 29 of its 58 application Python files as a screened source sample. The remaining application code, production data, credentials, prompts, deployment configuration, and operational integrations are private. This snapshot is not a runnable email platform.
 
 ## What I built
 
@@ -84,7 +84,7 @@ These figures describe the local working database, not data included in this pub
 
 ## What this repository includes
 
-The `samples/` directory contains selected, sanitized examples of the system's data normalization, source collection, search indexing, and quality checks. The samples are meant for code review. Internal campaign logic, full AI prompts, sending workflows, credentials, lead records, message content, and production configuration are withheld.
+The `samples/` directory contains roughly half of the application Python files. It covers data collection and staging, entity resolution, website text, enrichment, contact discovery, search, and read-only dashboard queries. The samples are meant for code review. Internal campaign orchestration, full AI prompts, sending and reply workflows, credentials, lead records, message content, and production configuration are withheld.
 
 ## Current limitations
 
