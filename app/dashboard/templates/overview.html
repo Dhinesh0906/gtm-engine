@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Overview</h2>
+
+<div class="cards">
+  <div class="card">
+    <h3>Funnel</h3>
+    <table>
+      <tr><td>Sent</td><td>{{ funnel.sent or 0 }}</td></tr>
+      <tr><td>Delivered</td><td>{{ funnel.delivered or 0 }} ({{ "%.1f"|format(funnel.delivery_rate*100) }}%)</td></tr>
+      <tr><td>Opened</td><td>{{ funnel.opened or 0 }} ({{ "%.1f"|format(funnel.open_rate*100) }}%)</td></tr>
+      <tr><td>Clicked</td><td>{{ funnel.clicked or 0 }} ({{ "%.1f"|format(funnel.click_rate*100) }}%)</td></tr>
+      <tr><td>Replied</td><td>{{ funnel.replied or 0 }} ({{ "%.1f"|format(funnel.reply_rate*100) }}%)</td></tr>
+      <tr><td>Positive</td><td>{{ funnel.positive or 0 }} ({{ "%.1f"|format(funnel.positive_rate*100) }}%)</td></tr>
+      <tr><td>Bounced</td><td>{{ funnel.bounced or 0 }} ({{ "%.1f"|format(funnel.bounce_rate*100) }}%)</td></tr>
+      <tr><td>Complaints</td><td>{{ funnel.complaints or 0 }}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Personas</h3>
+    <table>
+    {% for p in persona_stats %}
+      <tr><td>{{ p.name }}</td><td>{{ p.remaining }}/{{ p.daily_allowance }} left</td></tr>
+    {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+      <h3>Autopilot</h3>
+      <p class="muted" id="ap-status">Loading...</p>
+      {% if autopilot_enabled %}
+      <p><strong>{{ 'ON' if autopilot_enabled else 'OFF' }}</strong> — {{ autopilot_enabled }}</p>
+      {% endif %}
+      <div class="conv-actions">
+        <form method="post" action="/autopilot/toggle"><button class="btn btn-sm">Toggle</button></form>
+        <form method="post" action="/autopilot/cap" class="conv-actions">
+          <input type="number" name="cap" placeholder="Daily cap" min="1" class="cap-input">
+          <button class="btn btn-sm">Set Cap</button>
+        </form>
+      </div>
+  </div>
+  <div class="card">
+    <h3>Segments</h3>
+    {% for s in segments %}
+    <div class="seg-row"><span class="badge {{ s.status }}">{{ s.label or s.status }}</span> {{ s.name.replace('_',' ') }}</div>
+    {% else %}
+    <p class="muted">No segments yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

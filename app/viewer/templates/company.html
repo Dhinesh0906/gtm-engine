@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ detail.name or '-' }}</h2>
+<table>
+  <tr><td>Domain</td><td>{{ detail.domain or '-' }}</td></tr>
+  <tr><td>Country</td><td>{{ detail.country or '-' }}</td></tr>
+  <tr><td>Industry (NACE)</td><td>{{ detail.industry_nace or '-' }}</td></tr>
+  <tr><td>Description</td><td>{{ detail.description or '-' }}</td></tr>
+  <tr><td>Keywords</td><td>{{ detail.keywords or '-' }}</td></tr>
+  <tr><td>Size</td><td>{{ detail.size_range or '-' }} ({{ detail.size_estimate or '-' }})</td></tr>
+  <tr><td>B2B / SaaS / Startup / Tech</td><td>{{ detail.b2b_score or '-' }} / {{ detail.saas_score or '-' }} / {{ detail.startup_score or '-' }} / {{ detail.tech_score or '-' }}</td></tr>
+  <tr><td>Web text</td><td><pre>{{ detail.web_text or '-' }}</pre></td></tr>
+</table>
+<h3>Contacts</h3>
+<table><thead><tr><th>Type</th><th>Value</th><th>Status</th><th>Confidence</th><th>Source</th></tr></thead>
+<tbody>
+{% for cp in detail.contacts %}
+<tr><td>{{ cp.type }}</td><td>{{ cp.value }}</td><td>{{ cp.verify_status }}</td><td>{{ cp.confidence }}</td><td>{{ cp.source }}</td></tr>
+{% endfor %}
+</tbody></table>
+<h3>Source Records</h3>
+<table><thead><tr><th>Source</th><th>External ID</th><th>Raw JSON</th></tr></thead>
+<tbody>
+{% for s in detail.sources %}
+<tr><td>{{ s.source }}</td><td>{{ s.external_id }}</td><td><pre>{{ s.raw_json[:300] }}</pre></td></tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

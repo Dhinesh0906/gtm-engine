@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="thread-head">
+  <div>
+    <strong>{{ tctx.persona_id or 'You' }}</strong> ↔ <strong>{{ tctx.prospect or tctx.email }}</strong>
+    {% if tctx.company %}<span class="muted"> · {{ tctx.company }}</span>{% endif %}
+    {% if tctx.is_test %}<span class="badge test">TEST</span>{% endif %}
+  </div>
+  <div>
+    <span class="badge {{ tctx.status }}">{{ tctx.status }}</span>
+    <span class="muted">{{ tctx.email }}</span>
+  </div>
+</div>
+
+{# ---- Conversation history: cold email, their reply, everything already sent ---- #}
+{% for m in msgs if m.status != 'draft' %}
+<div class="msg {% if m.direction == 'in' %}inbound{% else %}outbound{% endif %}">
+  <div class="msg-meta">
+    {% if m.direction == 'in' %}
+      <strong>From:</strong> {{ tctx.email }}
+    {% else %}
+      <strong>To:</strong> {{ tctx.email }}
+    {% endif %}
+    <span class="muted"> · {{ (m.sent_at or m.created_at or '')[:16] }}</span>
+    {% if m.intent %}<span class="badge {{ m.intent }}">{{ m.intent }}</span>{% endif %}
+    {% if m.status == 'sent' %}<span class="badge sent">sent</span>{% endif %}
+  </div>
+  {% if m.subject %}<div class="msg-subject">{{ m.subject }}</div>{% endif %}
+  <div class="msg-body">{{ m.body }}</div>
+</div>
+{% endfor %}
+
+{# ---- The AI's suggested reply, editable inline, exactly where you'd type ---- #}
+{% set draft = (msgs | selectattr('status', 'equalto', 'draft') | list | last) %}
+{% if draft %}
+<div class="reply-box">
+  <div class="reply-head">
+    <strong>To:</strong> {{ tctx.email }}
+    <span class="muted"> · {{ draft.subject }}</span>
+  </div>
+  <div class="reply-status">
+    {% if tctx.status == 'escalated' %}
+      ⚠ Needs your attention — autopilot will not send this.
+    {% else %}
+      ✎ Drafted by AI — nothing is sent until you press Send.
+    {% endif %}
+  </div>
+  <form method="post" action="/draft/{{ draft.id }}/edit" id="draft-form">
+    <input type="hidden" name="subject" value="{{ draft.subject }}">
+    <textarea name="body" rows="10">{{ draft.body }}</textarea>
+    <div class="reply-actions">
+      <button class="btn btn-primary" formaction="/draft/{{ draft.id }}/send">Send</button>
+      <button class="btn" formaction="/draft/{{ draft.id }}/edit">Save changes</button>
+      <button class="btn btn-danger" formaction="/draft/{{ draft.id }}/discard">Discard</button>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="reply-box">
+  <div class="reply-head"><strong>To:</strong> {{ tctx.email }}</div>
+  <div class="reply-status">No AI draft yet for this thread.</div>
+  <form method="post" action="/thread/{{ assignment_id }}/reply">
+    <textarea name="body" rows="8" placeholder="Write a reply as {{ tctx.persona_id or 'your persona' }}..."></textarea>
+    <div class="reply-actions"><button class="btn">Save draft</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Segments</h2>
+<p class="muted">Tick the ones you want to change, then pick an action once.
+   <strong>ACTIVE</strong> segments are worked on by the autopilot; <strong>PAUSED</strong> are ignored.</p>
+
+<form method="post" action="/segments/bulk">
+  <div class="bulk-bar">
+    <label><input type="checkbox" id="check-all"> Select all</label>
+    <span class="sel-note"><span id="seg-sel-count">0</span> selected</span>
+    <span class="spacer"></span>
+    <button class="btn btn-primary" name="action" value="activate">Activate</button>
+    <button class="btn" name="action" value="pause">Pause</button>
+    <button class="btn btn-danger" name="action" value="delete"
+            onclick="return confirm('Delete the selected segments? Leads already emailed are not affected.')">Delete</button>
+  </div>
+
+  <div class="table-wrap">
+  <table class="table">
+    <tr><th></th><th>Segment</th><th>Status</th><th class="num">Leads</th><th class="num">Drafts</th><th class="num">Sent</th></tr>
+    {% for s in segments %}
+    <tr>
+      <td><input type="checkbox" class="seg-check" name="seg_ids" value="{{ s.id }}"></td>
+      <td><strong>{{ s.name.replace('_', ' ') }}</strong>
+          {% if s.angle %}<div class="muted">{{ s.angle }}</div>{% endif %}</td>
+      <td><span class="badge {{ s.status }}">{{ s.label or s.status }}</span></td>
+      <td class="num">{{ s.leads if s.leads is defined else '-' }}</td>
+      <td class="num">{{ s.drafts if s.drafts is defined else '-' }}</td>
+      <td class="num">{{ s.sent if s.sent is defined else '-' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">
+      <div class="empty-state">
+        <div class="empty-title">No segments yet</div>
+        <div class="empty-sub">Add targets from a product page to create your first segment.</div>
+      </div>
+    </td></tr>
+    {% endfor %}
+  </table>
+  </div>
+</form>
+
+<script>
+function refreshSegSel() {
+  document.getElementById('seg-sel-count').textContent =
+    document.querySelectorAll('.seg-check:checked').length;
+}
+document.getElementById('check-all').addEventListener('change', function (e) {
+  document.querySelectorAll('.seg-check').forEach(function (c) {
+    c.checked = e.target.checked;
+    c.closest('tr').classList.toggle('is-checked', e.target.checked);
+  });
+  refreshSegSel();
+});
+document.addEventListener('change', function (e) {
+  if (e.target.classList && e.target.classList.contains('seg-check')) {
+    e.target.closest('tr').classList.toggle('is-checked', e.target.checked);
+    refreshSegSel();
+  }
+});
+</script>
+{% endblock %}

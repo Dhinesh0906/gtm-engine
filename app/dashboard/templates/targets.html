@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Choose targets — {{ campaign.name or campaign.domain or 'Campaign' }}</h2>
+<p class="muted">Tick the verticals to email. Each one becomes a segment the autopilot works through.
+   "Emailable" is how many businesses already have a published email address.</p>
+
+<form method="get" action="/product/{{ campaign.id }}/targets" class="field-row">
+  <label>Country
+    <select name="country" onchange="this.form.submit()">
+      <option value="">(all)</option>
+      {% for c in countries %}
+        <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+<form method="post" action="/product/{{ campaign.id }}/targets">
+  <input type="hidden" name="country" value="{{ country }}">
+  <div class="table-wrap">
+  <table class="table">
+    <tr><th></th><th>Vertical</th><th class="num">Emailable</th>
+        <th class="num">Companies</th><th></th></tr>
+    {% for v in verticals %}
+    <tr>
+      <td><input type="checkbox" name="verticals" value="{{ v.industry }}"
+                 {% if v.industry in existing %}checked disabled{% endif %}></td>
+      <td>{{ v.industry.replace('_', ' ') }}</td>
+      <td class="num"><strong>{{ "{:,}".format(v.emailable) }}</strong></td>
+      <td class="num muted">{{ "{:,}".format(v.companies) }}</td>
+      <td class="muted">{% if v.industry in existing %}already added{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <div class="conv-actions field-row">
+    <button type="submit" class="btn btn-primary">Add selected as segments</button>
+    <a href="/product/{{ campaign.id }}" class="btn">Back to product</a>
+  </div>
+</form>
+{% endblock %}

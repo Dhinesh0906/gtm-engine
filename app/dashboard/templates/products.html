@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Products</h2>
+<div class="table-wrap">
+<table class="table">
+<tr><th>Name</th><th>Status</th><th class="num">Segments</th><th class="num">Drafts</th><th class="num">Sent</th></tr>
+{% for p in products %}
+<tr>
+  <td><a href="/product/{{ p.id }}">{{ p.name or p.domain or 'Campaign ' ~ p.id }}</a></td>
+  <td><span class="badge {{ p.status }}">{{ p.status }}</span></td>
+  <td class="num">{{ p.segments }}</td>
+  <td class="num">{{ p.drafts }}</td>
+  <td class="num">{{ p.sent }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5">
+  <div class="empty-state">
+    <div class="empty-title">No products yet</div>
+    <div class="empty-sub">Create one to start building segments and sending outreach.</div>
+  </div>
+</td></tr>
+{% endfor %}
+</table>
+</div>
+{% endblock %}

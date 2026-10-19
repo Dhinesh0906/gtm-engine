@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ campaign.name }}</h2>
+<p class="muted">{{ campaign.summary }}</p>
+<p class="page-meta">Status: <span class="badge {{ campaign.status }}">{{ campaign.status }}</span> · Domain: {{ campaign.domain or 'none' }}</p>
+<p class="page-meta">Drafts: {{ draft_count }} · Sent: {{ sent_count }}</p>
+
+<div class="cards">
+  <div class="card">
+    <h3>Brief</h3>
+    <table>
+      {% for key in ['pricing', 'icp', 'cta', 'tone', 'sender_name', 'sender_title'] %}
+      {% if brief.get(key) %}
+      <tr><td>{{ key }}</td><td>{{ brief[key] }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </table>
+    <div class="card-actions"><a href="/product/{{ campaign.id }}/edit" class="btn btn-sm">Edit Brief</a></div>
+  </div>
+  <div class="card">
+    <h3>Segments</h3>
+    {% for s in segments %}
+    <div class="seg-row"><span class="badge {{ s.status }}">{{ s.label or s.status }}</span> {{ s.name.replace('_',' ') }}</div>
+    {% else %}
+    <p class="muted">No segments yet.</p>
+    {% endfor %}
+    <div class="card-actions"><a href="/product/{{ campaign.id }}/targets" class="btn btn-sm">Choose Targets</a></div>
+  </div>
+</div>
+{% endblock %}

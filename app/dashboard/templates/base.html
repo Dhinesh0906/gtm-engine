@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raliess Dashboard</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="sidebar">
+  <div class="brand">Raliess</div>
+  <div class="campaign-switch">
+    <form method="get" action="/set-campaign">
+      <select name="cid" onchange="this.form.submit()">
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if c.id == current_cid %}selected{% endif %}>{{ c.name or c.domain }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  {% set path = request.url.path %}
+  <a href="/" class="nav-link {% if path in ('/', '/overview') %}active{% endif %}">Overview</a>
+  <a href="/product/new" class="nav-link nav-cta {% if path == '/product/new' %}active{% endif %}">+ New Product</a>
+  <a href="/products" class="nav-link {% if path == '/products' or (path.startswith('/product/') and path != '/product/new' and not path.endswith('/targets')) %}active{% endif %}">Products</a>
+  <a href="/leads{% if current_cid %}?campaign_id={{ current_cid }}{% endif %}"
+     class="nav-link {% if path == '/leads' %}active{% endif %}">Leads</a>
+  {% if current_cid %}<a href="/product/{{ current_cid }}/targets" class="nav-link {% if path.endswith('/targets') %}active{% endif %}">Targets</a>{% endif %}
+  <div class="nav-spacer"></div>
+  <a href="/inbox" class="nav-link {% if path == '/inbox' or path.startswith('/thread/') %}active{% endif %}">Inbox<span id="nav-unread" class="nav-badge" hidden></span></a>
+  {# Mail to non-persona addresses (hello@, johnson@). Deliberately NOT merged
+     with the sales Inbox - different purpose, different workflow. #}
+  <a href="/mailbox" class="nav-link {% if path == '/mailbox' %}active{% endif %}">Other mail<span id="nav-other" class="nav-badge" hidden></span></a>
+  <a href="/drafts" class="nav-link {% if path == '/drafts' %}active{% endif %}">Drafts</a>
+  <a href="/escalations" class="nav-link {% if path == '/escalations' %}active{% endif %}">Escalations
+    {% if escalation_count is defined and escalation_count > 0 %}<span class="nav-badge">{{ escalation_count }}</span>{% endif %}</a>
+  <a href="/segments" class="nav-link {% if path == '/segments' %}active{% endif %}">Segments</a>
+</nav>
+<main>
+{% set flash = request.query_params.get('flash') %}
+{% if flash %}
+  {% set _low = flash|lower %}
+  {% if 'fail' in _low or 'bad' in _low or 'no_' in _low or 'empty' in _low or 'nothing' in _low %}
+    {% set _tone = 'warn' %}
+  {% else %}
+    {% set _tone = 'ok' %}
+  {% endif %}
+  <div class="flash flash-{{ _tone }}">{{ flash }}</div>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+<script>
+// Unread reply badge on the Inbox link. One indexed COUNT, polled every 20s -
+// it never touches a page render, so no page waits on it.
+function navUnread() {
+  fetch("/api/inbox/unread").then(r => r.json()).then(d => {
+    const set = (id, n) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = n > 99 ? "99+" : n;
+      el.hidden = !n;
+    };
+    const n = d.unread || 0;
+    set("nav-unread", n);            // sales replies
+    set("nav-other", d.other || 0);  // hello@, support@ etc
+    // Total in the tab title, so a background window still tells you.
+    const total = n + (d.other || 0);
+    document.title = total
+      ? `(${total}) ` + document.title.replace(/^\(\d+\+?\)\s*/, "")
+      : document.title.replace(/^\(\d+\+?\)\s*/, "");
+  }).catch(() => {});
+}
+navUnread();
+setInterval(navUnread, 20000);
+</script>
+</body>
+</html>

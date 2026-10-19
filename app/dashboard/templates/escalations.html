@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Escalations</h2>
+{% for e in escalations %}
+<div class="conv-row escalated">
+  <div class="conv-head">
+    <span class="badge escalated">Needs you</span>
+    <strong>{{ e.prospect }}</strong>
+    <span class="mono muted">{{ e.email }}</span>
+    <span class="muted">· {{ e.persona_id }}</span>
+  </div>
+  {% if e.draft_id %}
+  <div class="conv-subject">{{ e.draft_subject }}</div>
+  <p class="conv-snippet">{{ e.draft_body }}</p>
+  <div class="conv-actions">
+    <form method="post" action="/draft/{{ e.draft_id }}/send"><button class="btn btn-primary">Approve &amp; Send</button></form>
+    <a href="/thread/{{ e.assignment_id }}" class="btn">Edit</a>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-title">Nothing escalated</div>
+  <div class="empty-sub">Conversations that need your judgment will show up here.</div>
+</div>
+{% endfor %}
+{% endblock %}

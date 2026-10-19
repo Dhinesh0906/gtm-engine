@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Leads — {{ current_campaign.name }}</h2>
+
+<div class="stat-bar" id="counts">
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-label">Total</span>
+      <span class="stat-value" id="ct-total">{{ leads.counts.total }}</span>
+    </div>
+    <div class="stat stat-sent">
+      <span class="stat-label">Sent</span>
+      <span class="stat-value" id="ct-sent">{{ leads.counts.sent }}</span>
+    </div>
+    <div class="stat stat-skipped">
+      <span class="stat-label">Skipped</span>
+      <span class="stat-value" id="ct-skipped">{{ leads.counts.skipped }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Remaining</span>
+      <span class="stat-value" id="ct-remaining">{{ leads.counts.remaining }}</span>
+    </div>
+  </div>
+  <div class="progress-track">
+    <div id="progress-bar" class="progress-fill" style="width:{{ (100*(leads.counts.sent+leads.counts.skipped)/max(leads.counts.total,1))|round }}%"></div>
+  </div>
+</div>
+
+<div class="testbar">
+  <button type="button" class="btn btn-sm" onclick="document.getElementById('test-form').classList.toggle('show')">Test email</button>
+  <div id="batch-box">
+    <form method="post" action="/leads/batch/start" class="batchform"
+          onsubmit="return confirm('Start sending real cold emails now?\n\nThis ignores the send window and the daily cap. It runs in the background for several hours.')">
+      <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+      <strong>Daily send</strong>
+      <input type="number" name="target" value="50" min="1" max="500" style="width:70px">
+      emails from my active segments
+      <button class="btn-send" type="submit">Start</button>
+    </form>
+
+    {# One follow-up per person, only to cold emails that were never answered.
+       The due count comes from the followup_queue table, refreshed on page
+       load - so anyone who replied has already dropped out of it. #}
+    {# Counts arrive from /api/leads/meta after the page has painted. They are
+       NOT computed during the page load - that is what made every next-page
+       click pay for a GROUP BY over 3M rows. #}
+    <form method="post" action="/leads/batch/start" class="batchform" id="fu-form"
+          onsubmit="return confirm('Send follow-ups now?\n\nOnly to people who received a cold email at least 4 days ago and never replied. Each person gets one follow-up, ever.')">
+      <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+      <input type="hidden" name="mode" value="followup">
+      <strong>Follow-ups</strong>
+      <input type="number" name="target" value="20" min="1" max="200" style="width:70px">
+      <span id="fu-due">to people who never replied</span>
+      <button class="btn" type="submit">Send follow-ups</button>
+    </form>
+    <div class="sendnote" id="fu-note"></div>
+
+    {# Which model writes the drafts. Flips live - brain.py re-reads this per
+       request, so it takes effect on the very next draft without a restart. #}
+    <div class="llmbar" id="llm-bar">
+      <strong>Writer</strong>
+      <label class="llmopt"><input type="radio" name="llmmode" value="local"> Local</label>
+      <label class="llmopt"><input type="radio" name="llmmode" value="cloud"> Paid API</label>
+      <span class="sendnote" id="llm-note">checking...</span>
+    </div>
+    {# WHICH COUNTRIES THIS PRODUCT MAILS.
+       Not the same as what was harvested: the database holds every country
+       collected, and these ticks decide who actually gets a cold email.
+       The batch rotates evenly over whatever is ticked. #}
+    <details class="countrybox" id="countrybox" hidden>
+      <summary><strong>Countries</strong> &mdash; <span id="cc-summary">loading</span></summary>
+      <form method="post" action="/leads/countries">
+        <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+        <div class="countrygrid" id="cc-grid"></div>
+        <button class="btn btn-sm" type="submit">Save countries</button>
+        <span class="sendnote">
+          Harvest everything, mail the ticked ones. The batch splits each run
+          evenly across them &mdash; 60 emails over 3 countries is 20 each.
+          Untick all to fall back to <code>.env</code>.
+        </span>
+      </form>
+    </details>
+
+    <form method="post" action="/leads/batch/stop" style="display:inline">
+      <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+      <button class="btn" type="submit">Stop</button>
+    </form>
+    <div id="batch-status" class="sendnote">checking...</div>
+    <div class="sendnote">Sending is for <strong>{{ current_campaign.name }}</strong>
+      only. Segments, leads and follow-ups are per product; the daily cap and
+      the suppression list are shared, because they belong to the domain.</div>
+    <div id="batch-log" class="batchlog"></div>
+  </div>
+
+  {# TODO: move into static/style.css - kept here so the batch box is
+     self-contained until the redesign pass picks it up. #}
+  <style>
+  #batch-box { background:#fff; border:1px solid #e3e6ea; border-radius:8px;
+               padding:12px 14px; margin:10px 0; }
+  .batchform { display:inline-flex; align-items:center; gap:8px; margin-right:6px; }
+  .batchlog { font-family:ui-monospace,Menlo,monospace; font-size:11px;
+              color:#6b7280; white-space:pre; max-height:150px; overflow-y:auto;
+              margin-top:8px; background:#f7f8fa; border-radius:6px; padding:8px; }
+  .batch-run { color:#1e7e34; font-weight:600; }
+  .batch-error { color:#c0392b; font-weight:600; }
+  </style>
+
+  <span class="sendnote">Or tick individual companies below and use
+    <strong>Send email to selected</strong> to send a few immediately.</span>
+</div>
+<div id="test-form" class="testbar-form">
+  <form method="post" action="/leads/test">
+    <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+    <input name="email" placeholder="you@example.com" required>
+    <button class="btn btn-primary btn-sm">Add test lead</button>
+  </form>
+</div>
+
+<form method="get" action="/leads" class="filter-group">
+  <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+  <input type="search" name="q" value="{{ q or '' }}" placeholder="Search company name...">
+  <div class="filter-divider"></div>
+  <select name="industry">
+    <option value="">All verticals</option>
+    {% for v in verticals %}
+      <option value="{{ v.industry }}" {% if industry == v.industry %}selected{% endif %}>
+        {{ v.industry.replace('_',' ') }} ({{ "{:,}".format(v.n) }})</option>
+    {% endfor %}
+  </select>
+  <div class="filter-divider"></div>
+  <select name="country">
+    <option value="">All countries</option>
+    {% for c in countries %}
+      <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <div class="filter-divider"></div>
+  <select name="state">
+    {% for k, lbl in [('', 'All'), ('pending', 'Pending'), ('sent', 'Sent'), ('skipped', 'Skipped')] %}
+      <option value="{{ k }}" {% if state == k %}selected{% endif %}>{{ lbl }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary btn-sm">Apply</button>
+  <a class="btn-link" href="/leads?campaign_id={{ campaign_id }}">Clear</a>
+</form>
+
+<form method="post" action="/leads/send-now" id="sel-form"
+      onsubmit="return confirmSend()">
+<input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+
+<div class="actionbar">
+  <button type="submit" class="btn btn-danger">Send email to selected (<span id="sel-count">0</span>)</button>
+  <button type="button" class="btn" onclick="skipSelected()">Skip selected</button>
+  <span class="sendnote">Selecting does nothing on its own — choose an action.</span>
+</div>
+
+<div class="table-wrap">
+<table id="leads-table" class="table">
+<colgroup>
+  <col class="col-check"><col class="col-company"><col class="col-email">
+  <col class="col-phone"><col class="col-desc"><col class="col-address">
+</colgroup>
+<thead><tr>
+  <th></th><th>Company</th><th>Email</th><th>Phone</th><th>Description</th><th>Address</th>
+</tr></thead>
+<tbody>
+{% for row in leads.rows %}
+<tr data-cid="{{ row.company_id }}" class="row-{{ row.status }}">
+  <td><input type="checkbox" class="lead-tick" name="company_ids"
+    value="{{ row.company_id }}" data-cid="{{ row.company_id }}"
+    {% if row.status == 'sent' %}disabled title="Already emailed"{% endif %}></td>
+  <td class="truncate" title="{{ row.name }}">{{ row.name }}</td>
+  <td class="truncate mono" title="{{ row.email }}">{{ row.email }}</td>
+  <td class="mono">{{ row.phone }}</td>
+  <td class="truncate" title="{{ row.description }}">{{ row.description }}</td>
+  <td class="truncate" title="{{ row.address }}">{{ row.address }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</form>
+
+{% set qs = "campaign_id=" ~ campaign_id ~ "&q=" ~ (q or '') ~ "&industry=" ~ (industry or '') ~ "&country=" ~ (country or '') ~ "&state=" ~ (state or '') %}
+<div class="pager">
+  {# Only a WINDOW of pages — rendering all 61,000+ page links freezes the browser. #}
+  {% if leads.page > 1 %}
+    <a href="/leads?{{ qs }}&page=1">« First</a>
+    <a href="/leads?{{ qs }}&page={{ leads.page - 1 }}">‹ Prev</a>
+  {% endif %}
+  {% for p in range([1, leads.page - 2]|max, [leads.pages, leads.page + 2]|min + 1) %}
+    <a href="/leads?{{ qs }}&page={{ p }}" class="{% if p == leads.page %}active{% endif %}">{{ p }}</a>
+  {% endfor %}
+  {% if leads.page < leads.pages %}
+    {# `after` makes this a keyset seek (WHERE id > last_id) instead of
+       OFFSET n, so stepping forward costs the same at page 60,000 as at
+       page 1. `page` is carried along only so the counter stays correct. #}
+    <a href="/leads?{{ qs }}&page={{ leads.page + 1 }}&after={{ leads.next_after }}">Next ›</a>
+    <a href="/leads?{{ qs }}&page={{ leads.pages }}">Last »</a>
+  {% endif %}
+  <span class="pinfo">Page {{ "{:,}".format(leads.page) }} of {{ "{:,}".format(leads.pages) }}</span>
+  <form method="get" action="/leads" class="jump">
+    <input type="hidden" name="campaign_id" value="{{ campaign_id }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <input type="hidden" name="industry" value="{{ industry or '' }}">
+    <input type="hidden" name="country" value="{{ country or '' }}">
+    <input type="hidden" name="state" value="{{ state or '' }}">
+    <input type="number" name="page" min="1" max="{{ leads.pages }}" placeholder="Go to page">
+    <button class="btn btn-sm">Go</button>
+  </form>
+</div>
+
+<script>
+const CID = {{ campaign_id }};
+const API = "/api/leads?campaign_id=" + CID;
+
+function poll() {
+  fetch(API + "&page={{ leads.page }}&industry={{ filters.industry }}&country={{ filters.country }}&q={{ filters.q }}")
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("ct-total").textContent = data.counts.total;
+      document.getElementById("ct-sent").textContent = data.counts.sent;
+      document.getElementById("ct-skipped").textContent = data.counts.skipped;
+      document.getElementById("ct-remaining").textContent = data.counts.remaining;
+      const pct = data.counts.total ? Math.round(100*(data.counts.sent+data.counts.skipped)/data.counts.total) : 0;
+      document.getElementById("progress-bar").style.width = pct + "%";
+      data.rows.forEach(r => {
+        const cb = document.querySelector('.lead-tick[data-cid="' + r.company_id + '"]');
+        if (cb) {
+          // NOTE: never touch cb.checked here. The poll runs every 5s and would
+          // wipe a selection out from under you mid-click.
+          cb.disabled = (r.status === 'sent');
+          cb.closest("tr").className = "row-" + r.status;
+        }
+      });
+    });
+}
+
+// ---- selection ----------------------------------------------------------
+function selected() {
+  return Array.from(document.querySelectorAll('.lead-tick:checked'));
+}
+function refreshSel() {
+  document.getElementById('sel-count').textContent = selected().length;
+}
+document.addEventListener('change', e => {
+  if (e.target.classList && e.target.classList.contains('lead-tick')) refreshSel();
+});
+
+function confirmSend() {
+  const n = selected().length;
+  if (!n) { alert('Tick at least one company first.'); return false; }
+  return confirm(
+    'Send ' + n + ' real cold email' + (n === 1 ? '' : 's') + ' now?\n\n' +
+    'The AI will research each company and write it a proper email.\n' +
+    'These do NOT count against your 50/day and ignore the send window.\n\n' +
+    'This cannot be undone.'
+  );
+}
+
+function skipSelected() {
+  const boxes = selected();
+  if (!boxes.length) { alert('Tick at least one company first.'); return; }
+  if (!confirm('Mark ' + boxes.length + ' company(ies) as skipped? They will never be emailed.')) return;
+  Promise.all(boxes.map(cb =>
+    fetch('/api/leads/' + cb.dataset.cid + '/tick', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({campaign_id: CID})
+    })
+  )).then(() => { boxes.forEach(cb => { cb.checked = false; }); refreshSel(); poll(); });
+}
+
+// ---- batch progress -----------------------------------------------------
+function pollBatch() {
+  fetch("/api/batch/status").then(r => r.json()).then(s => {
+    const el = document.getElementById("batch-status");
+    if (!el) return;
+    let line = "";
+    if (s.running) {
+      const what = s.mode === "followup" ? "FOLLOW-UPS" : "RUNNING";
+      line = `${what} (campaign ${s.campaign_id}) — ${s.sent}/${s.target} sent, ${s.skipped} skipped (${s.percent}%)`;
+    } else if (s.state === "idle") {
+      line = "Not running. Press Start to send today's batch.";
+    } else {
+      line = `${s.state.toUpperCase()} — ${s.message || ""}`;
+    }
+    el.textContent = line;
+    el.className = "sendnote " + (s.state === "error" ? "batch-error"
+                   : s.running ? "batch-run" : "");
+    const log = document.getElementById("batch-log");
+    if (log) log.textContent = (s.recent || []).join("\n");
+  }).catch(() => {});
+}
+pollBatch();
+setInterval(pollBatch, 5000);
+
+// Follow-up counts and the country picker. Fetched ONCE, after the page has
+// painted, so neither the first load nor a next-page click waits on them.
+// These were rendered server-side and cost a GROUP BY over 3M companies plus a
+// write lock on every single page view.
+function loadMeta() {
+  fetch("/api/leads/meta?campaign_id={{ campaign_id }}")
+    .then(r => r.json())
+    .then(m => {
+      const due = (m.followups && m.followups.by_status &&
+                   m.followups.by_status.pending) || 0;
+      const st = (m.followups && m.followups.by_status) || {};
+      const fmt = n => (n || 0).toLocaleString();
+
+      document.getElementById("fu-due").textContent =
+        due ? `of ${fmt(due)} due` : "to people who never replied";
+      const btn = document.querySelector("#fu-form button");
+      if (btn) btn.disabled = !due;
+
+      const byC = (m.followups && m.followups.pending_by_country) || {};
+      const cc = Object.keys(byC).map(k => `${k} ${byC[k]}`).join(", ");
+      document.getElementById("fu-note").textContent = due
+        ? `${fmt(due)} waiting${cc ? " (" + cc + ")" : ""}. ` +
+          `${fmt(st.sent)} already nudged, ${fmt(st.cancelled)} dropped out ` +
+          `after replying or unsubscribing.`
+        : "No follow-ups due. A cold email qualifies 4 days after it was sent, " +
+          "if nobody replied.";
+
+      const picks = m.country_pick || [];
+      if (!picks.length) return;
+      const grid = document.getElementById("cc-grid");
+      grid.innerHTML = picks.map(c =>
+        `<label class="countryitem">` +
+        `<input type="checkbox" name="country" value="${c.code}" ${c.on ? "checked" : ""}>` +
+        `<span>${c.code}</span><small>${c.n.toLocaleString()}</small></label>`
+      ).join("");
+      const on = picks.filter(c => c.on).map(c => c.code);
+      document.getElementById("cc-summary").textContent = on.length
+        ? "sending to " + on.join(", ")
+        : "none ticked, using TARGET_COUNTRIES from .env";
+      const box = document.getElementById("countrybox");
+      box.hidden = false;
+      if (!on.length) box.open = true;
+    })
+    .catch(() => {});
+}
+loadMeta();
+
+// Which model writes drafts. Reads live state, and flipping it takes effect on
+// the next draft - no restart, so a running batch is not interrupted.
+function loadLlm() {
+  fetch("/api/llm/mode").then(r => r.json()).then(d => {
+    const bar = document.getElementById("llm-bar");
+    if (!bar) return;
+    bar.querySelectorAll("input[name=llmmode]").forEach(i => {
+      i.checked = (i.value === d.mode);
+      i.onchange = () => {
+        const fd = new FormData(); fd.append("mode", i.value);
+        fetch("/api/llm/mode", { method: "POST", body: fd })
+          .then(() => loadLlm()).catch(() => {});
+      };
+    });
+    const note = document.getElementById("llm-note");
+    const localRadio = bar.querySelector("input[value=local]");
+
+    if (!d.local_configured) {
+      // Do not let the UI imply a local model is running when none exists.
+      localRadio.disabled = true;
+      note.textContent = "No local model configured. Set LOCAL_LLM_MODEL in .env "
+                       + "(e.g. gemma4:31b-it-qat). Every draft is going to "
+                       + d.cloud_model + ".";
+      note.className = "sendnote batch-error";
+      return;
+    }
+    localRadio.disabled = false;
+    if (d.mode === "local") {
+      note.textContent = d.local_up
+        ? d.local_model + " \u2014 running. Falls back to " + d.cloud_model + " if it stops."
+        : d.local_model + " \u2014 NOT RUNNING. Start it: ollama serve. Drafts are "
+          + "falling back to " + d.cloud_model + ".";
+      note.className = "sendnote" + (d.local_up ? "" : " batch-error");
+    } else {
+      note.textContent = d.cloud_model + " \u2014 paid API. Local model bypassed.";
+      note.className = "sendnote";
+    }
+  }).catch(() => {});
+}
+loadLlm();
+setInterval(loadLlm, 30000);
+
+refreshSel();
+setInterval(poll, 5000);
+</script>
+{% endblock %}

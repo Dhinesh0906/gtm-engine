@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Replies awaiting you</h2>
+<p class="page-note">
+  AI-written replies to prospects who wrote back. Nothing here is sent until you
+  press Approve &amp; Send.
+  {% if queued_cold %}
+  <br><span class="muted">{{ queued_cold }} cold {{ 'email' if queued_cold == 1 else 'emails' }}
+  are written and queued for sending — those go out on their own and are not
+  shown here.</span>
+  {% endif %}
+</p>
+{% for d in drafts %}
+<div class="conv-row">
+  <div class="conv-head">
+    {% if d.is_test %}<span class="badge test">TEST</span>{% endif %}
+    <strong>{{ d.prospect }}</strong>
+    <span class="mono muted">{{ d.email }}</span>
+    <span class="muted">· Step {{ d.step }}</span>
+  </div>
+  <div class="conv-subject">{{ d.subject }}</div>
+  <p class="conv-snippet">{{ d.body[:150] }}{% if d.body|length > 150 %}…{% endif %}</p>
+  <div class="conv-actions">
+    <form method="post" action="/draft/{{ d.id }}/send"><button class="btn btn-primary">Approve &amp; Send</button></form>
+    <form method="post" action="/draft/{{ d.id }}/discard"><button class="btn btn-danger">Discard</button></form>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-title">No replies waiting</div>
+  <div class="empty-sub">
+    AI-written replies appear here once a prospect responds.
+    {% if queued_cold %}
+    <br>{{ queued_cold }} cold {{ 'email is' if queued_cold == 1 else 'emails are' }}
+    queued for sending — that happens automatically.
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+<style>
+.page-note { color:#6b7280; font-size:13px; max-width:760px; margin:-4px 0 16px; }
+</style>
+{% endblock %}

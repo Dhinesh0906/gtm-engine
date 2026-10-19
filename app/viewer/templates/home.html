@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Database Summary</h2>
+<div class="cards">
+  <div class="card"><h3>Companies</h3><p><strong>{{ summary.total or 0 }}</strong></p></div>
+  <div class="card"><h3>With Email</h3><p><strong>{{ summary.with_email }}</strong></p></div>
+  <div class="card"><h3>With Phone</h3><p><strong>{{ summary.with_phone }}</strong></p></div>
+</div>
+<div class="cards">
+  <div class="card">
+    <h3>Top Countries</h3>
+    <table>{% for c in summary.top_countries %}<tr><td>{{ c.name }}</td><td>{{ c.count }}</td></tr>{% endfor %}</table>
+  </div>
+  <div class="card">
+    <h3>Top Industries</h3>
+    <table>{% for i in summary.top_industries %}<tr><td>{{ i.name }}</td><td>{{ i.count }}</td></tr>{% endfor %}</table>
+  </div>
+</div>
+{% endblock %}

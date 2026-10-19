@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Companies</h2>
+<form method="get" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  <input name="q" placeholder="Search name..." value="{{ filters.q }}">
+  <input name="industry" placeholder="Industry" value="{{ filters.industry }}">
+  <input name="country" placeholder="Country" value="{{ filters.country }}">
+  <label><input type="checkbox" name="has_email" value="1" {% if filters.has_email %}checked{% endif %}> Has email</label>
+  <button class="btn">Filter</button>
+</form>
+<p>{{ data.total }} companies · Page {{ data.page }}/{{ data.pages }}</p>
+<table>
+<thead><tr><th>Company</th><th>Email</th><th>Phone</th><th>Description</th><th>Address</th><th>Industry</th><th>Country</th></tr></thead>
+<tbody>
+{% for row in data.rows %}
+<tr>
+  <td><a href="/company/{{ row.company_id }}">{{ row.name }}</a></td>
+  <td>{{ row.email }}</td>
+  <td>{{ row.phone }}</td>
+  <td>{{ row.description }}</td>
+  <td>{{ row.address }}</td>
+  <td>{{ row.industry }}</td>
+  <td>{{ row.country }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="pager">
+  {% if data.page > 1 %}<a href="/data?page={{ data.page - 1 }}&industry={{ filters.industry }}&country={{ filters.country }}&has_email={{ filters.has_email }}&q={{ filters.q }}">&laquo; Prev</a>{% endif %}
+  {% if data.page < data.pages %}<a href="/data?page={{ data.page + 1 }}&industry={{ filters.industry }}&country={{ filters.country }}&has_email={{ filters.has_email }}&q={{ filters.q }}">Next &raquo;</a>{% endif %}
+  &nbsp; <a href="/export.csv?industry={{ filters.industry }}&country={{ filters.country }}&has_email={{ filters.has_email }}&q={{ filters.q }}">Export CSV</a>
+</div>
+{% endblock %}

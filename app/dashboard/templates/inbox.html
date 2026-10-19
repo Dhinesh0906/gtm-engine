@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form method="post" action="/inbox/check" style="margin-bottom:10px">
+  <button class="btn" type="submit">Check for replies now</button>
+  <span style="color:#8a8f96;font-size:12px;margin-left:8px">
+    Replies are polled automatically every 60 seconds.</span>
+</form>
+
+<div class="ib-tabs">
+  <a href="/inbox?tab=needs_reply" class="{{ 'on' if tab == 'needs_reply' }}">
+     ↵ Needs reply <span class="cnt">{{ counts.needs_reply }}</span></a>
+  <a href="/inbox?tab=got_reply" class="{{ 'on' if tab == 'got_reply' }}">
+     Got reply <span class="cnt">{{ counts.got_reply }}</span></a>
+  <a href="/inbox?tab=sent" class="{{ 'on' if tab == 'sent' }}">
+     Sent <span class="cnt">{{ counts.sent }}</span></a>
+</div>
+
+<div class="ib-wrap">
+  {# ---------------- LEFT: conversation list ---------------- #}
+  <div class="ib-list-col">
+    <form method="get" action="/inbox" class="ib-filters">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <label>STATUS
+        <select name="status" onchange="this.form.submit()">
+          <option value="">All</option>
+          {% for s in ["Hot", "Not Interested", "Out of Office", "Unqualified", "Unsubscribed"] %}
+            <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {# Which sending identity the conversation belongs to. #}
+      {% if personas %}
+      <label>FROM
+        <select name="persona" onchange="this.form.submit()">
+          <option value="">All senders</option>
+          {% for p in personas %}
+            <option value="{{ p.id }}" {% if selected_persona == p.id %}selected{% endif %}>
+              {{ p.name or p.id }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endif %}
+    </form>
+
+    {% if unread %}
+    <div class="ib-unread-bar">
+      <span class="dot"></span>
+      {{ unread }} new {{ "reply" if unread == 1 else "replies" }} &mdash; newest first
+    </div>
+    {% endif %}
+
+    <div class="ib-list">
+    {# Sorted by the newest INBOUND message, so whatever just came in is at the
+       top. A thread is unread until you open it; a second reply on a thread you
+       already read makes it unread again. #}
+    {% for c in convos %}
+    <a class="ib-card {{ 'sel' if c.assignment_id == selected_id }} {{ 'unread' if c.unread }}"
+       href="/inbox?tab={{ tab }}&status={{ status }}&a={{ c.assignment_id }}">
+      <div class="ib-row1">
+        <span class="who">{% if c.unread %}<span class="dot" title="new reply"></span>{% endif %}{{ c.prospect or c.company or c.email }}</span>
+        <span class="when">{{ c.date }}</span>
+      </div>
+      <div class="mail">{{ c.email }}</div>
+      {% if c.segment %}<div class="seg">{{ c.segment }}</div>{% endif %}
+      <div class="badges">
+        {% if c.is_test %}<span class="badge test">TEST</span>{% endif %}
+        {% if c.badge %}<span class="badge {{ c.badge_tone }}">{{ c.badge }}</span>{% endif %}
+        {% if c.status == 'escalated' %}<span class="badge escalated">Needs you</span>{% endif %}
+      </div>
+    </a>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-title">Nothing here yet</div>
+        <div class="empty-sub">Replies will show up here once prospects respond.</div>
+      </div>
+    {% endfor %}
+    </div>
+  </div>
+
+  {# ---------------- RIGHT: the thread + inline draft ---------------- #}
+  <div class="ib-thread">
+  {% if selected %}
+    {% set t = selected.ctx %}
+    <div class="th-head">
+      <div><strong>{{ t.persona_id or 'You' }}</strong> ↔ <strong>{{ t.prospect or t.email }}</strong>
+        {% if t.company %}<span class="muted"> · {{ t.company }}</span>{% endif %}
+        {% if t.is_test %}<span class="badge test">TEST</span>{% endif %}
+      </div>
+      <div><span class="badge {{ t.status }}">{{ t.status }}</span></div>
+    </div>
+
+    {% for m in selected.msgs if m.status != 'draft' %}
+    <div class="msg {{ 'inbound' if m.direction == 'in' else 'outbound' }}">
+      <div class="msg-meta">
+        <strong>{{ 'From' if m.direction == 'in' else 'To' }}:</strong> {{ t.email }}
+        <span class="muted"> · {{ (m.sent_at or m.created_at or '')[:16] }}</span>
+        {% if m.intent %}<span class="badge neutral">{{ m.intent.replace('_',' ') }}</span>{% endif %}
+      </div>
+      {% if m.subject %}<div class="msg-subject">{{ m.subject }}</div>{% endif %}
+      <div class="msg-body">{{ m.body }}</div>
+    </div>
+    {% endfor %}
+
+    {% set draft = (selected.msgs | selectattr('status','equalto','draft') | list | last) %}
+    {% if draft %}
+    <div class="reply">
+      <div class="reply-head"><strong>To:</strong> {{ t.email }}
+        <span class="muted"> · {{ draft.subject }}</span></div>
+      <div class="reply-note">
+        {% if t.status == 'escalated' %}⚠ Needs your attention — autopilot will not send this.
+        {% else %}✎ Drafted by AI — nothing is sent until you press Send.{% endif %}
+      </div>
+      <form method="post" action="/draft/{{ draft.id }}/edit">
+        <input type="hidden" name="subject" value="{{ draft.subject }}">
+        {# Come back to THIS thread after sending, not to the Drafts list. #}
+        <input type="hidden" name="next"
+               value="/inbox?tab={{ tab }}&status={{ status }}&a={{ t.assignment_id }}">
+        <textarea name="body" rows="9">{{ draft.body }}</textarea>
+        <div class="reply-actions">
+          <button class="btn btn-primary" formaction="/draft/{{ draft.id }}/send">Send</button>
+          <button class="btn" formaction="/draft/{{ draft.id }}/edit">Save changes</button>
+          <button class="btn btn-danger" formaction="/draft/{{ draft.id }}/discard">Discard</button>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="reply">
+      <div class="reply-note">
+        No AI draft here. Auto-replies, out-of-office and challenge-response
+        filters are not answered automatically - write one yourself and send it
+        straight from this page.
+      </div>
+      <form method="post" action="/thread/{{ t.assignment_id }}/reply">
+        <input type="hidden" name="next"
+               value="/inbox?tab={{ tab }}&status={{ status }}&a={{ t.assignment_id }}">
+        {# Editable subject: a challenge-response filter only releases the held
+           message if its verification token comes back unchanged. #}
+        <style>
+        .subj-label { display:block; font-size:12px; color:#6b7280; margin-bottom:6px; }
+        .subj-input { width:100%; border:1px solid #dfe3e8; border-radius:6px;
+                      padding:8px 10px; font:inherit; margin-top:3px; }
+        </style>
+        <label class="subj-label">Subject
+          <input type="text" name="subject" class="subj-input"
+                 value="{% set lastin = (selected.msgs | selectattr('direction','equalto','in') | list | last) %}{% if lastin and lastin.subject %}{{ lastin.subject }}{% else %}Re: {{ t.subject or '' }}{% endif %}">
+        </label>
+        <textarea name="body" rows="7" placeholder="Write a reply..."></textarea>
+        <div class="reply-actions">
+          <button class="btn-green" type="submit" name="send" value="1">Send now</button>
+          <button class="btn" type="submit">Save as draft</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-title">No conversation selected</div>
+      <div class="empty-sub">Pick one from the list on the left to read it.</div>
+    </div>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{% if edit %}Edit Product{% else %}New Product{% endif %}</h2>
+
+<form method="post" action="{% if edit %}/product/{{ campaign.id }}/edit{% else %}/product/new{% endif %}">
+  <fieldset>
+    <legend>About the product</legend>
+    <label>Product name <input name="name" value="{{ brief.name or '' }}" required></label>
+    <label>Domain <small>(optional — leave blank if your site is not live)</small> <input name="domain" value="{{ campaign.domain or '' }}"></label>
+    <label>Summary <textarea name="summary" rows="3" required>{{ brief.summary or '' }}</textarea></label>
+    <label>Value props (one per line) <textarea name="value_props" rows="4">{{ brief.value_props or '' }}</textarea></label>
+    <label>Proof points (one per line) <textarea name="proof_points" rows="3">{{ brief.proof_points or '' }}</textarea></label>
+    <label>Pricing <input name="pricing" value="{{ brief.pricing or '' }}"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Who it's for</legend>
+    <label>Ideal customer profile <textarea name="icp" rows="2">{{ brief.icp or '' }}</textarea></label>
+    <label>What makes it different (one per line) <textarea name="differentiators" rows="3">{{ brief.differentiators or '' }}</textarea></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>How to write the emails</legend>
+    <label>Tone <textarea name="tone" rows="3">{{ brief.tone or 'Consultative and plain-spoken. Short sentences. No hype, no jargon.' }}</textarea></label>
+    <label>Call to action <input name="cta" value="{{ brief.cta or '' }}"></label>
+    <label>CTA Link (optional) <input name="cta_link" value="{{ brief.cta_link or '' }}"></label>
+    <label>Sender name <input name="sender_name" value="{{ brief.sender_name or '' }}" required></label>
+    <label>Sender title <input name="sender_title" value="{{ brief.sender_title or '' }}"></label>
+    <label>Approved facts the AI MAY state (one per line) <textarea name="locked_facts" rows="4">{% if brief.locked_facts %}{% for f in brief.locked_facts %}{{ f }}
+{% endfor %}{% endif %}</textarea></label>
+    <label>NEVER claim (one per line — the guardrail) <textarea name="must_not_claim" rows="6">{% if brief.must_not_claim %}{% for f in brief.must_not_claim %}{{ f }}
+{% endfor %}{% else %}guarantee
+cheapest
+#1
+best in the world
+we called your
+you are losing
+% more bookings
+costs only{% endif %}</textarea></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Replies</legend>
+    <label><input type="radio" name="auto_reply" value="off" {% if brief.auto_reply != 'on' %}checked{% endif %}> Draft replies for me to send <small>(nothing sent without a click — safest)</small></label>
+    <label><input type="radio" name="auto_reply" value="on" {% if brief.auto_reply == 'on' %}checked{% endif %}> Let the AI send replies automatically</label>
+  </fieldset>
+
+  <button class="btn btn-primary">{% if edit %}Save Changes{% else %}Create Product{% endif %}</button>
+</form>
+{% endblock %}
